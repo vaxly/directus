@@ -1,7 +1,7 @@
 <template>
 	<v-list-group
 		v-if="children"
-		v-show="visibleChildrenValues.length > 0"
+		v-show="groupShown"
 		:value="value"
 		:open="typeof search === 'string' && search.length > 0"
 		arrow-placement="before"
@@ -14,7 +14,9 @@
 				:label="text"
 				:value="value"
 				:disabled="disabled"
-			/>
+			>
+				<v-highlight :text="text" :query="search" />
+			</v-checkbox>
 		</template>
 
 		<v-checkbox-tree-checkbox
@@ -32,11 +34,15 @@
 			:value="choice[itemValue]"
 			:children="choice[itemChildren]"
 			:disabled="disabled"
+			:show-selection-only="showSelectionOnly"
+			:parent-value="value"
 		/>
 	</v-list-group>
 
-	<v-list-item v-else-if="!children && !hidden" class="item">
-		<v-checkbox v-model="treeValue" :disabled="disabled" :checked="checked" :label="text" :value="value" />
+	<v-list-item v-else-if="!children" v-show="!hidden" class="item">
+		<v-checkbox v-model="treeValue" :disabled="disabled" :checked="checked" :label="text" :value="value">
+			<v-highlight :text="text" :query="search" />
+		</v-checkbox>
 	</v-list-item>
 </template>
 
@@ -100,28 +106,63 @@ export default defineComponent({
 			type: Boolean,
 			default: false,
 		},
+		showSelectionOnly: {
+			type: Boolean,
+			default: false,
+		},
+		parentValue: {
+			type: [String, Number],
+			default: null,
+		},
 	},
 	emits: ['update:modelValue'],
 	setup(props, { emit }) {
 		const visibleChildrenValues = computed(() => {
-			if (!props.search) return props.children?.map((child) => child[props.itemValue]);
+			let options = props.children || [];
 
-			return props.children
-				?.filter(
+			if (props.search) {
+				options = options.filter(
 					(child) =>
 						child[props.itemText].toLowerCase().includes(props.search.toLowerCase()) ||
-						childrenHaveMatch(child.children)
-				)
-				?.map((child) => child[props.itemValue]);
+						childrenHaveSearchMatch(child[props.itemChildren])
+				);
+			}
 
-			function childrenHaveMatch(children: Record<string, any>[] | undefined): boolean {
+			if (props.showSelectionOnly) {
+				options = options.filter(
+					(child) =>
+						props.modelValue.includes(child[props.itemValue]) ||
+						childrenHaveValueMatch(child[props.itemChildren]) ||
+						props.modelValue.includes(props.parentValue)
+				);
+			}
+
+			return options.map((child) => child[props.itemValue]);
+
+			function childrenHaveSearchMatch(children: Record<string, any>[] | undefined): boolean {
 				if (!children) return false;
 				return children.some(
 					(child) =>
 						child[props.itemText].toLowerCase().includes(props.search.toLowerCase()) ||
-						childrenHaveMatch(child[props.itemChildren])
+						childrenHaveSearchMatch(child[props.itemChildren])
 				);
 			}
+
+			function childrenHaveValueMatch(children: Record<string, any>[] | undefined): boolean {
+				if (!children) return false;
+				return children.some(
+					(child) =>
+						props.modelValue.includes(child[props.itemValue]) || childrenHaveValueMatch(child[props.itemChildren])
+				);
+			}
+		});
+
+		const groupShown = computed(() => {
+			if (props.showSelectionOnly === true && props.modelValue.includes(props.value)) {
+				return true;
+			}
+
+			return visibleChildrenValues.value.length > 0;
 		});
 
 		const childrenValues = computed(() => props.children?.map((child) => child[props.itemValue]) || []);
@@ -216,6 +257,7 @@ export default defineComponent({
 			treeValue,
 			groupIndeterminateState,
 			visibleChildrenValues,
+			groupShown,
 		};
 
 		function emitAll(rawValue: (string | number)[], { added, removed }: Delta) {
@@ -258,15 +300,20 @@ export default defineComponent({
 		function emitBranch(rawValue: (string | number)[], { added, removed }: Delta) {
 			const allChildrenRecursive = getRecursiveChildrenValues('all');
 
+			// Note: Added/removed is a tad confusing here, as an item that gets added to the array of
+			// selected items can immediately be negated by the logic below, as it's potentially
+			// replaced by the parent item's value
+
 			// When clicking on an individual item in the enabled group
 			if (
 				(props.modelValue.includes(props.value) || props.checked === true) &&
 				added &&
-				childrenValues.value.includes(added?.[0])
+				added.length === 1 &&
+				childrenValues.value.includes(added[0])
 			) {
 				const newValue = [
-					...rawValue.filter((val) => val !== props.value && val !== added?.[0]),
-					...childrenValues.value.filter((childVal) => childVal !== added?.[0]),
+					...rawValue.filter((val) => val !== props.value && val !== added[0]),
+					...childrenValues.value.filter((childVal) => childVal !== added[0]),
 				];
 
 				return emitValue(newValue);
@@ -446,6 +493,6 @@ export default defineComponent({
 
 <style scoped>
 .item {
-	padding-left: 32px;
+	padding-left: 32px !important;
 }
 </style>

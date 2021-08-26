@@ -400,7 +400,6 @@ documentation: Documentatie
 sidebar: Sidebar
 duration: Duur
 charset: Karakterset
-second: Seconde
 file_moved: Bestand verplaatst
 collection_created: Collectie aangemaakt
 modified_on: Aangepast op
@@ -441,6 +440,7 @@ errors:
   UNKNOWN: Onverwachte fout
   UNPROCESSABLE_ENTITY: Onverwerkbare entiteit
   INTERNAL_SERVER_ERROR: Onverwachte fout
+  NOT_NULL_VIOLATION: Waarde kan niet "null" zijn
 value_hashed: Waarde veilig opgeslagen
 bookmark_name: Bladwijzer naam...
 create_bookmark: Bladwijzer aanmaken
@@ -774,6 +774,7 @@ fields:
     theme: Thema
     tfa_secret: 2FA (Twee-Factor Authenticatie)
     status: Status
+    status_active: Actief
     role: Rol
     token: Token
     last_page: Laatste pagina
@@ -810,11 +811,33 @@ fields:
     users: Gebruikers in rol
     module_list: Module Navigatie
     collection_list: Collectie navigatie
+  directus_webhooks:
+    name: Naam
+    status: Status
 field_options:
   directus_collections:
     track_activity_revisions: Track Activiteiten & Revisies
     only_track_activity: Track alleen activiteiten
     do_not_track_anything: Niets tracken
+    collection_setup: Collectie setup
+    singleton: Behandel als één object
+    language: Taal
+    archive_divider: Archiveren
+    divider: Sorteren
+  directus_roles:
+    fields:
+      icon_name: Icoon
+      name_name: Naam
+    collection_list:
+      fields:
+        type_name: Type
+      collections_name: Collecties
+  directus_users:
+    status_dropdown_active: Actief
+  directus_webhooks:
+    status_options_active: Actief
+    actions_create: Maak
+    actions_update: Updaten
 no_fields_in_collection: 'Er zijn nog geen velden in "{collection}"'
 do_nothing: Niets doen
 generate_and_save_uuid: Genereer een UUID
@@ -954,6 +977,8 @@ interfaces:
     customSyntax: Aangepaste blokken
     box: Blok / Inline
     imageToken: Afbeeldingstoken
+  map:
+    zoom: Zoom
   presentation-notice:
     notice: Melding
     description: Een korte melding weergeven

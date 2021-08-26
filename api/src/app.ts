@@ -41,17 +41,20 @@ import sanitizeQuery from './middleware/sanitize-query';
 import schema from './middleware/schema';
 import { track } from './utils/track';
 import { validateEnv } from './utils/validate-env';
+import { validateStorage } from './utils/validate-storage';
 import { register as registerWebhooks } from './webhooks';
 import { session } from './middleware/session';
+import { flushCaches } from './cache';
+import { Url } from './utils/url';
 
 export default async function createApp(): Promise<express.Application> {
 	validateEnv(['KEY', 'SECRET']);
 
-	try {
-		new URL(env.PUBLIC_URL);
-	} catch {
-		logger.warn('PUBLIC_URL is not a valid URL');
+	if (!new Url(env.PUBLIC_URL).isAbsolute()) {
+		logger.warn('PUBLIC_URL should be a full URL');
 	}
+
+	await validateStorage();
 
 	await validateDBConnection();
 
@@ -59,6 +62,12 @@ export default async function createApp(): Promise<express.Application> {
 		logger.error(`Database doesn't have Directus tables installed.`);
 		process.exit(1);
 	}
+
+	if ((await validateMigrations()) === false) {
+		logger.warn(`Database migrations have not all been run`);
+	}
+
+	await flushCaches();
 
 	await initializeExtensions();
 
@@ -115,11 +124,14 @@ export default async function createApp(): Promise<express.Application> {
 
 	if (env.SERVE_APP) {
 		const adminPath = require.resolve('@directus/app/dist/index.html');
-		const publicUrl = env.PUBLIC_URL.endsWith('/') ? env.PUBLIC_URL : env.PUBLIC_URL + '/';
+		const adminUrl = new Url(env.PUBLIC_URL).addPath('admin');
 
 		// Set the App's base path according to the APIs public URL
 		let html = fse.readFileSync(adminPath, 'utf-8');
-		html = html.replace(/<meta charset="utf-8" \/>/, `<meta charset="utf-8" />\n\t\t<base href="${publicUrl}admin/">`);
+		html = html.replace(
+			/<meta charset="utf-8" \/>/,
+			`<meta charset="utf-8" />\n\t\t<base href="${adminUrl.toString({ rootRelative: true })}/">`
+		);
 
 		app.get('/admin', (req, res) => res.send(html));
 		app.use('/admin', express.static(path.join(adminPath, '..')));
@@ -167,7 +179,7 @@ export default async function createApp(): Promise<express.Application> {
 	app.use('/relations', relationsRouter);
 	app.use('/revisions', revisionsRouter);
 	app.use('/roles', rolesRouter);
-	app.use('/server/', serverRouter);
+	app.use('/server', serverRouter);
 	app.use('/settings', settingsRouter);
 	app.use('/users', usersRouter);
 	app.use('/utils', utilsRouter);

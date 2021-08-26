@@ -192,6 +192,8 @@ card_size: Card Size
 sort_field: Sort Field
 add_sort_field: Add Sort Field
 sort: सॉर्ट
+errors:
+  NOT_NULL_VIOLATION: मान null नहीं हो सकता
 flip_horizontal: फ्लिप हॉरिजॉन्टल
 one_item: '1 समान'
 font: फ़ॉन्ट
@@ -236,6 +238,19 @@ fields:
     translation: फ़ील्ड नाम अनुवाद
   directus_roles:
     name: भूमिका नाम
+  directus_webhooks:
+    name: नाम
+field_options:
+  directus_collections:
+    language: भाषा
+    archive_divider: आर्काइव
+    divider: सॉर्ट
+  directus_roles:
+    fields:
+      name_name: नाम
+  directus_webhooks:
+    actions_create: Create
+    actions_update: Update
 interfaces:
   presentation-links:
     primary: प्राइमरी

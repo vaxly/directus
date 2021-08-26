@@ -3,7 +3,7 @@
 		<slot name="prepend-outer" />
 		<component
 			:is="component"
-			:ref="component === 'a' ? 'noopener noreferer' : null"
+			:ref="component === 'a' ? 'noopener noreferer' : undefined"
 			v-focus="autofocus"
 			:download="download"
 			class="button"
@@ -24,9 +24,9 @@
 			]"
 			:type="type"
 			:disabled="disabled"
-			:to="to"
+			:to="to !== '' ? to : undefined"
 			:href="href"
-			:target="component === 'a' ? '_blank' : null"
+			:target="component === 'a' ? '_blank' : undefined"
 			@click="onClick"
 		>
 			<span class="content" :class="{ invisible: loading }">
@@ -94,7 +94,7 @@ export default defineComponent({
 		},
 		href: {
 			type: String,
-			default: null,
+			default: undefined,
 		},
 		active: {
 			type: Boolean,
@@ -114,7 +114,7 @@ export default defineComponent({
 		},
 		value: {
 			type: [Number, String],
-			default: null,
+			default: undefined,
 		},
 		dashed: {
 			type: Boolean,
@@ -131,7 +131,7 @@ export default defineComponent({
 		},
 		download: {
 			type: String,
-			default: null,
+			default: undefined,
 		},
 		...sizeProps,
 	},
@@ -142,7 +142,7 @@ export default defineComponent({
 		const { route: linkRoute, isActive, isExactActive } = useLink(props);
 		const sizeClass = useSizeClass(props);
 
-		const component = computed<'a' | 'router-link' | 'button'>(() => {
+		const component = computed(() => {
 			if (props.disabled) return 'button';
 			if (notEmpty(props.href)) return 'a';
 			if (props.to) return 'router-link';

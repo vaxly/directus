@@ -8,7 +8,14 @@ import {
 	getPackageExtensions,
 	resolvePackage,
 } from '@directus/shared/utils/node';
-import { APP_EXTENSION_TYPES, APP_SHARED_DEPS } from '@directus/shared/constants';
+import {
+	API_EXTENSION_PACKAGE_TYPES,
+	API_EXTENSION_TYPES,
+	APP_EXTENSION_TYPES,
+	APP_SHARED_DEPS,
+	EXTENSION_PACKAGE_TYPES,
+	EXTENSION_TYPES,
+} from '@directus/shared/constants';
 import getDatabase from './database';
 import emitter from './emitter';
 import env from './env';
@@ -25,20 +32,21 @@ import { rollup } from 'rollup';
 // @ts-expect-error
 import virtual from '@rollup/plugin-virtual';
 import alias from '@rollup/plugin-alias';
+import { Url } from './utils/url';
 
 let extensions: Extension[] = [];
 let extensionBundles: Partial<Record<AppExtensionType, string>> = {};
 
 export async function initializeExtensions(): Promise<void> {
 	try {
-		await ensureExtensionDirs(env.EXTENSIONS_PATH);
+		await ensureExtensionDirs(env.EXTENSIONS_PATH, env.SERVE_APP ? EXTENSION_TYPES : API_EXTENSION_TYPES);
 		extensions = await getExtensions();
 	} catch (err) {
 		logger.warn(`Couldn't load extensions`);
 		logger.warn(err);
 	}
 
-	if (env.SERVE_APP ?? env.NODE_ENV !== 'development') {
+	if (env.SERVE_APP) {
 		extensionBundles = await generateExtensionBundles();
 	}
 
@@ -71,8 +79,14 @@ export function registerExtensionHooks(): void {
 }
 
 async function getExtensions(): Promise<Extension[]> {
-	const packageExtensions = await getPackageExtensions('.');
-	const localExtensions = await getLocalExtensions(env.EXTENSIONS_PATH);
+	const packageExtensions = await getPackageExtensions(
+		'.',
+		env.SERVE_APP ? EXTENSION_PACKAGE_TYPES : API_EXTENSION_PACKAGE_TYPES
+	);
+	const localExtensions = await getLocalExtensions(
+		env.EXTENSIONS_PATH,
+		env.SERVE_APP ? EXTENSION_TYPES : API_EXTENSION_TYPES
+	);
 
 	return [...packageExtensions, ...localExtensions];
 }
@@ -107,14 +121,15 @@ async function generateExtensionBundles() {
 
 async function getSharedDepsMapping(deps: string[]) {
 	const appDir = await fse.readdir(path.join(resolvePackage('@directus/app'), 'dist'));
-	const adminUrl = env.PUBLIC_URL.endsWith('/') ? env.PUBLIC_URL + 'admin' : env.PUBLIC_URL + '/admin';
 
 	const depsMapping: Record<string, string> = {};
 	for (const dep of deps) {
 		const depName = appDir.find((file) => dep.replace(/\//g, '_') === file.substring(0, file.indexOf('.')));
 
 		if (depName) {
-			depsMapping[dep] = `${adminUrl}/${depName}`;
+			const depUrl = new Url(env.PUBLIC_URL).addPath('admin', depName);
+
+			depsMapping[dep] = depUrl.toString({ rootRelative: true });
 		} else {
 			logger.warn(`Couldn't find shared extension dependency "${dep}"`);
 		}
